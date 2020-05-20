@@ -8,6 +8,7 @@ import os
 import atexit
 import signal
 import sys
+from rain import Rain
 
 # names of the HTTP request to switch on the triggers
 _BASEURL = "https://maker.ifttt.com/trigger/{0}/with/key/{1}"
@@ -18,6 +19,9 @@ with open("/home/pi/irrigazione/IFTTT_KEY", "r") as fkey:
 
 # name of the log file to store information on the triggers 
 _LOGFILE = "/home/pi/irrigazione/irrigazione.log"
+
+# rain threshold for scheduling irrigation (in mm, daily)
+_RAINTHRESHOLD = 4.0
 
 # define function to print time and message to log file
 def printLogMessage(msg):
@@ -113,6 +117,9 @@ def main():
     signal.signal(signal.SIGTERM, stopIrrigazione)
     signal.signal(signal.SIGINT, stopIrrigazione)
 
+    # initialize class to get the weather forecast for next day
+    forecast = Rain()
+
     # =========================================================================
     
     # now, infinite loop with:
@@ -127,16 +134,27 @@ def main():
         
         printLogMessage("scheduling events for today")
 
+        # get amount of rain that is predicted for today
+        todaystr, rainamount = forecast.getamount()
+        logmessage = "Predicting {0} mm of rain for today ({1})".format(rainamount, todaystr)
+        printLogMessage(logmessage)
+
         # read list of events from configuration file
         with open("/home/pi/irrigazione/triggers.dat") as fconfig:
             todayevents = readConfiguration(fconfig)
-        print(todayevents)
 
         # initialize the schedule
         s = sched.scheduler()
-        # schedule events stored in the dictionary
-        for tm, evnt in todayevents.items():
-           scheduleTriggerToday(s, evnt, tm)
+
+        # if the predicted rain is not much, schedule events stored in the dictionary
+        if rainamount < _RAINTHRESHOLD:
+            for tm, evnt in todayevents.items():
+               scheduleTriggerToday(s, evnt, tm)
+        else:
+            logmessage = "No irrigation will be scheduled for today!"
+            printLogMessage(logmessage)
+
+        # if heavy rain is predicted, only the waiting time will be scheduled
         # schedule waiting till next scheduling time
         scheduleWaitingTomorrow(s, (1, 0))
         # now execute the scheduler
