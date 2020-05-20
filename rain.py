@@ -6,11 +6,12 @@ from datetime import datetime
 class Rain:
 
     BASEURL="https://api.openweathermap.org/data/2.5/onecall?lat={0}&lon={1}&exclude={2}&appid={3}&units=metric"
+    KEYFILE = "/home/pi/irrigazione/OPENWEATHER_KEY"
 
     def __init__(self, latitude=45.46, longitude=9.18):
 
         # read and store the API key for OpenWeather
-        with open("OPENWEATHER_KEY") as fkey:
+        with open(self.KEYFILE) as fkey:
             self.APIKEY = fkey.read().strip()
 
         # define latitude and longitude (default are Milano lat&long)
